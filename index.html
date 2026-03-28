@@ -914,6 +914,10 @@ function runFilter() {
   errorBox.style.display = 'none';
   if (!parsedData) return;
 
+  // Reset per-group state so stale entries from a previous upload don't persist
+  _pvEntries = new Map();
+  _actOverrides = {};
+
   const defaultYear = null; // auto-extrapolated from today
 
   let parsed;
@@ -1270,6 +1274,15 @@ function renderPeriodValidation() {
           }
         }
       }
+
+      // Correction pass: a period with a valid parsed date that is not active today
+      // must be REMOVED regardless of what earlier logic decided, unless overridden.
+      periods.forEach(p => {
+        if (p.logEntry && !p.logEntry.overridden && p.parsed && isActiveToday(p.parsed) === false) {
+          p.logEntry.status = 'r';
+          p.logEntry.label = 'REMOVED';
+        }
+      });
 
       categories.push({ category, periods });
     }
