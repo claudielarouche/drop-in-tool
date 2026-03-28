@@ -1221,10 +1221,17 @@ function renderPeriodValidation() {
           p.logEntry.label = 'KEPT';
         }
       } else {
+        // Keep empty/unknown periods if no sibling period is currently active
+        const hasActiveNonEmpty = periods.some(p => p.parsed && isActiveToday(p.parsed));
         periods.forEach(p => {
           if (p.logEntry && !p.logEntry.overridden && (p.logEntry.status === 'u' || p.logEntry.isEmpty)) {
-            p.logEntry.status = 'r';
-            p.logEntry.label = 'REMOVED';
+            if (hasActiveNonEmpty) {
+              p.logEntry.status = 'r';
+              p.logEntry.label = 'REMOVED';
+            } else {
+              p.logEntry.status = 'k';
+              p.logEntry.label = 'KEPT';
+            }
           }
         });
       }

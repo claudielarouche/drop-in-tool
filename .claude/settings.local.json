@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find . -type f \\\\\\(-name *.json -o -name *.ts -o -name *.tsx -o -name *.js -o -name *.jsx \\\\\\))",
+      "Bash(dir \"C:\\\\Users\\\\claud\\\\Downloads\\\\Cowork\\\\drop-in-tool\" /b)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
