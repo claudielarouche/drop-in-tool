@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Period Filter — CSV Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: #2e2e2e;
+    --accent: #e8ff47;
+    --accent2: #47ffe8;
+    --text: #e0e0e0;
+    --muted: #666;
+    --danger: #ff4747;
+    --success: #47ff8a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  header span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .today-badge {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    background: rgba(71, 255, 232, 0.08);
+    border: 1px solid rgba(71, 255, 232, 0.25);
+    padding: 4px 12px;
+    border-radius: 2px;
+  }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  .drop-zone {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(232, 255, 71, 0.04);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .drop-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .drop-label strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .config {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="text"], input[type="number"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+  }
+
+  .hint {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .actions {
+    margin-top: 28px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0f0f0f;
+  }
+
+  .btn-primary:hover { background: #d4eb30; }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; background: var(--accent); }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-download {
+    background: var(--success);
+    color: #0f0f0f;
+  }
+
+  .btn-download:hover { background: #30eb72; }
+
+  /* Results */
+  .results {
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+    padding-top: 32px;
+    display: none;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    border-radius: 2px;
+  }
+
+  .stat-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-num.kept { color: var(--success); }
+  .stat-num.removed { color: var(--danger); }
+  .stat-num.total { color: var(--accent); }
+
+  .stat-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .log-section {
+    margin-top: 24px;
+  }
+
+  .log-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .log-row {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    display: flex;
+    gap: 12px;
+  }
+
+  .log-row .status-k { color: var(--success); }
+  .log-row .status-r { color: var(--danger); }
+  .log-row .status-u { color: #ff9947; }
+  .log-row .period-text { color: #aaa; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .btn-toggle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .btn-toggle.is-kept {
+    background: transparent;
+    border-color: rgba(255,71,71,0.4);
+    color: rgba(255,71,71,0.7);
+  }
+  .btn-toggle.is-kept:hover {
+    background: rgba(255,71,71,0.12);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .btn-toggle.is-removed {
+    background: transparent;
+    border-color: rgba(71,255,138,0.4);
+    color: rgba(71,255,138,0.7);
+  }
+  .btn-toggle.is-removed:hover {
+    background: rgba(71,255,138,0.12);
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  .btn-toggle.is-fixed {
+    opacity: 0.25;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .log-row { align-items: center; padding: 2px 0; }
+
+  .warn-section {
+    margin-top: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+  .warn-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #ff9947;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .warn-title .warn-count {
+    background: rgba(255,153,71,0.15);
+    border: 1px solid rgba(255,153,71,0.3);
+    color: #ff9947;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+  }
+  .warn-log {
+    background: var(--surface);
+    border: 1px solid rgba(255,153,71,0.2);
+    border-radius: 2px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 12px 16px;
+  }
+  .warn-row {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    border-bottom: 1px solid #1f1f1f;
+    padding: 4px 0;
+  }
+  .warn-row:last-child { border-bottom: none; }
+  .warn-line { color: #ff9947; min-width: 52px; flex-shrink: 0; }
+  .warn-col  { color: var(--accent2); min-width: 120px; flex-shrink: 0; }
+  .warn-msg  { color: #aaa; flex: 1; }
+  .warn-msg em { color: var(--danger); font-style: normal; }
+
+  /* Period Validation */
+  .pv-group {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .pv-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: #151515;
+    border-bottom: 1px solid var(--border);
+  }
+  .pv-facility {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pv-category {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #666;
+  }
+  .pv-warn-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-left: auto;
+  }
+  .pv-warn-overlap  { background: rgba(255,153,71,0.15); color: #ff9947; border: 1px solid rgba(255,153,71,0.3); }
+  .pv-warn-inactive { background: rgba(255,71,71,0.12);  color: var(--danger); border: 1px solid rgba(255,71,71,0.3); }
+  .pv-period-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid #1a1a1a;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+  .pv-period-row:last-child { border-bottom: none; }
+  .pv-status-k { color: var(--success); min-width: 72px; font-weight: 600; }
+  .pv-status-r { color: var(--danger);  min-width: 72px; font-weight: 600; }
+  .pv-status-u { color: #ff9947;        min-width: 72px; font-weight: 600; }
+  .pv-period-text {
+    flex: 1;
+    color: #aaa;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pv-period-text:hover { color: var(--accent2); text-decoration: underline dotted; }
+  .pv-range { color: #555; font-size: 10px; white-space: nowrap; }
+  .pv-count { color: #444; font-size: 10px; white-space: nowrap; }
+
+  .error-box {
+    background: rgba(255, 71, 71, 0.08);
+    border: 1px solid rgba(255, 71, 71, 0.3);
+    border-radius: 2px;
+    padding: 14px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 16px;
+  }
+
+  /* ── Period detail modal ─────────────────────────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 560px;
+    max-width: 92vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    flex: 1;
+  }
+
+  .modal-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 0 0 12px;
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-body {
+    overflow-y: auto;
+    padding: 16px 24px;
+    flex: 1;
+  }
+
+  .modal-facility-row {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-facility-row:last-child { border-bottom: none; }
+
+  .modal-facility-link {
+    color: var(--accent2);
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(71,255,232,0.35);
+    flex: 1;
+  }
+  .modal-facility-link:hover { color: #fff; border-bottom-color: var(--accent2); }
+
+  .modal-facility-nolink {
+    color: #aaa;
+    flex: 1;
+  }
+
+  .period-text {
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .period-text:hover { color: var(--accent2) !important; text-decoration: underline dotted; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Period Filter</h1>
+  <span>// CSV Row Cleaner</span>
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#333;letter-spacing:0.1em;">v2.0</span>
+  <div class="today-badge" id="todayBadge"></div>
+</header>
+
+<main>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" accept=".csv" id="fileInput">
+    <div class="drop-icon">⬡</div>
+    <div class="drop-label">Drop your <strong>CSV file</strong> here, or click to browse</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-secondary" id="clearBtn">Clear</button>
+    <span id="fileName" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);"></span>
+  </div>
+
+  <div id="errorBox" class="error-box" style="display:none;"></div>
+
+  <div class="results" id="results">
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num total" id="statTotal">0</div>
+        <div class="stat-label">Total Rows</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num kept" id="statKept">0</div>
+        <div class="stat-label">Kept (Active Today)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num removed" id="statRemoved">0</div>
+        <div class="stat-label">Removed</div>
+      </div>
+    </div>
+
+    <!-- Period Validation (merged row log + overlap) -->
+    <div class="log-section" id="periodValidationSection" style="display:none;">
+      <div class="log-title">// Period Validation</div>
+      <div id="periodValidationContainer"></div>
+    </div>
+
+    <!-- Validation Warnings -->
+    <div class="warn-section" id="warnSection" style="display:none;">
+      <div class="warn-title">
+        // Validation Warnings
+        <span class="warn-count" id="warnCount">0</span>
+      </div>
+      <div class="warn-log" id="warnContainer"></div>
+    </div>
+
+    <!-- Category Coverage Warning -->
+    <div class="warn-section" id="categoryCoverageSection" style="display:none;">
+      <div class="warn-title" style="color:var(--danger);">
+        // Categories With No Active Rows Today
+        <span class="warn-count" id="categoryCoverageCount" style="background:rgba(255,71,71,0.1);border-color:rgba(255,71,71,0.3);color:var(--danger);">0</span>
+      </div>
+      <div class="warn-log" id="categoryCoverageContainer"></div>
+    </div>
+
+    <!-- Play Free Flag -->
+    <div class="warn-section" id="playFreeSection" style="display:none;">
+      <div class="warn-title" style="color:var(--accent2);">
+        // Play Free Flag Propagation
+        <span class="warn-count" id="playFreeCount" style="background:rgba(71,255,232,0.1);border-color:rgba(71,255,232,0.3);color:var(--accent2);">0</span>
+      </div>
+      <div class="warn-log" id="playFreeContainer"></div>
+    </div>
+
+    <!-- Download -->
+    <div class="actions" style="margin-top:24px;">
+      <button class="btn-download" id="downloadBtn">↓ Download Corrected CSV</button>
+    </div>
+    <div id="nextUploadNote" style="display:none;margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);">
+      The next upload should be on: <span id="nextUploadDate" style="color:var(--accent2);"></span>
+    </div>
+
+  </div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <span class="modal-count" id="modalCount"></span>
+      <button class="modal-close" onclick="document.getElementById('modalOverlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+</main>
+
+<script>
+// ── Date parsing ──────────────────────────────────────────────────────────────
+
+const TODAY = new Date();
+TODAY.setHours(0, 0, 0, 0);
+
+document.getElementById('todayBadge').textContent = 'Today: ' + TODAY.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+const MONTHS = {
+  january:1, february:2, march:3, april:4, may:5, june:6,
+  july:7, august:8, september:9, october:10, november:11, december:12,
+  jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12
+};
+
+function cleanStr(s) {
+  // Remove leading apostrophe, BOM, non-breaking spaces, weird unicode
+  return s
+    .replace(/^[''\u2018\u2019\uFEFF]+/, '')
+    .replace(/[\u00C2\u00A0\u202F\u2009\u0009]+/g, ' ')  // Â and various spaces → space
+    .replace(/\s+/g, ' ')
+    // Normalize period strings: remove optional comma after year/day before 'to'
+    // e.g. 'September 3, 2025, to' → 'September 3, 2025 to'
+    .replace(/(\d{4}),\s*(to\b)/gi, '$1 $2')
+    .replace(/(\d{1,2}),\s*(to\b)/gi, '$1 $2')
+    .trim();
+}
+
+function guessYear(month, defaultYear) {
+  // Smart year guessing: if month is in the past of current year, use next year; otherwise current year
+  const dy = defaultYear || null;
+  if (dy) return dy;
+  const curYear = TODAY.getFullYear();
+  const testDate = new Date(curYear, month - 1, 1);
+  // If test month is before January of this year context, bump
+  return curYear;
+}
+
+function parseDate(str, refYear) {
+  // str like "March 22, 2026" or "March 22" or "22 June" or "28 June 2026" or just "22"
+  str = str.trim();
+  // Pattern 1: Month Day [Year]  e.g. "March 22" or "March 22, 2026"
+  const fmt1 = str.match(/^([A-Za-z]+)\s+(\d{1,2})(?:,?\s*(\d{4}))?$/);
+  if (fmt1) {
+    const month = MONTHS[fmt1[1].toLowerCase()];
+    if (!month) return null;
+    const day  = parseInt(fmt1[2]);
+    const year = fmt1[3] ? parseInt(fmt1[3]) : refYear;
+    return new Date(year, month - 1, day);
+  }
+  // Pattern 2: Day Month [Year]  e.g. "28 June" or "28 June 2026"
+  const fmt2 = str.match(/^(\d{1,2})\s+([A-Za-z]+)(?:,?\s*(\d{4}))?$/);
+  if (fmt2) {
+    const month = MONTHS[fmt2[2].toLowerCase()];
+    if (!month) return null;
+    const day  = parseInt(fmt2[1]);
+    const year = fmt2[3] ? parseInt(fmt2[3]) : refYear;
+    return new Date(year, month - 1, day);
+  }
+  // Just a number (day continuation)
+  const dayOnly = str.match(/^(\d{1,2})$/);
+  if (dayOnly) {
+    return null;
+  }
+  return null;
+}
+
+function parsePeriod(raw, _unused) {
+  const s = cleanStr(raw);
+  if (!s) return null;
+
+  const curYear = TODAY.getFullYear();
+
+  // Single date (no "to") — e.g. "February 16"
+  if (!/\bto\b/i.test(s)) {
+    const d = parseDate(s, curYear);
+    if (!d) return null;
+    return { start: d, end: d };
+  }
+
+  // Split on " to "
+  const parts = s.split(/\s+to\s+/i);
+  if (parts.length < 2) return null;
+
+  let startStr = parts[0].trim();
+  let endStr = parts.slice(1).join(' to ').trim();
+
+  // Fix common typo: period instead of comma (e.g. "March 29. 2026")
+  endStr = endStr.replace(/(\w)\.\s+(\d{4})/, '$1, $2');
+  startStr = startStr.replace(/(\w)\.\s+(\d{4})/, '$1, $2');
+
+  // Check if end has an explicit year — use it for start too if start lacks one
+  const endHasYear = /\d{4}/.test(endStr);
+  const endYearVal = endHasYear ? parseInt(endStr.match(/\d{4}/)[0]) : null;
+
+  // If neither date has an explicit year, try curYear first; if start > end, it spans
+  // a year boundary so start belongs to curYear-1 (handled below)
+  const start = parseDate(startStr, endYearVal || curYear);
+  if (!start) return null;
+
+  let end = parseDate(endStr, start.getFullYear());
+
+  if (!end) {
+    const dayMatch = endStr.match(/^(\d{1,2})$/);
+    if (dayMatch) {
+      end = new Date(start.getFullYear(), start.getMonth(), parseInt(dayMatch[1]));
+    }
+  }
+
+  if (!end) return null;
+
+  // If start is after end, the period spans a year boundary — subtract 1 year from start
+  if (start > end) {
+    start.setFullYear(start.getFullYear() - 1);
+  }
+
+  return { start, end };
+}
+
+function isActiveToday(period) {
+  if (!period) return null; // unknown
+  const t = TODAY.getTime();
+  return period.start.getTime() <= t && t <= period.end.getTime();
+}
+
+// ── CSV parsing ──────────────────────────────────────────────────────────────
+
+function parseCSV(text) {
+  // Normalize line endings
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!text.trim()) return { headers: [], rows: [], delim: ',' };
+
+  // Detect delimiter from first line
+  const firstNewline = text.indexOf('\n');
+  const firstLine = firstNewline >= 0 ? text.slice(0, firstNewline) : text;
+  const delim = firstLine.includes('\t') ? '\t' : ',';
+
+  // Character-by-character parser that handles quoted cells with embedded commas and newlines
+  function parseAllCells(src) {
+    const records = [];
+    let record = [];
+    let cell = '';
+    let inQ = false;
+    let i = 0;
+
+    while (i < src.length) {
+      const c = src[i];
+
+      if (inQ) {
+        if (c === '"') {
+          if (src[i + 1] === '"') { cell += '"'; i += 2; continue; }
+          else { inQ = false; i++; continue; }
+        }
+        cell += c; i++; continue;
+      }
+
+      if (c === '"') { inQ = true; i++; continue; }
+
+      if (c === delim) {
+        record.push(cell); cell = ''; i++; continue;
+      }
+
+      if (c === '\n') {
+        record.push(cell); cell = '';
+        records.push(record); record = [];
+        i++; continue;
+      }
+
+      cell += c; i++;
+    }
+
+    record.push(cell);
+    if (record.some(c => c !== '')) records.push(record);
+
+    return records;
+  }
+
+  const records = parseAllCells(text);
+  if (records.length === 0) return { headers: [], rows: [], delim };
+
+  const headers = records[0].map(h => h.trim().replace(/^['"]+|['"]+$/g, '').trim());
+  const rows = [];
+
+  for (let r = 1; r < records.length; r++) {
+    const cells = records[r];
+    if (cells.every(c => !c.trim())) continue;
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = cells[idx] !== undefined ? cells[idx].trim() : ''; });
+    rows.push(row);
+  }
+
+  // Normalize whitespace in all cells (collapse multiple spaces/tabs to single space)
+  rows.forEach(row => {
+    Object.keys(row).forEach(key => {
+      if (typeof row[key] === 'string') {
+        row[key] = row[key].replace(/[\r\n]+/g, ' ').replace(/[ \t]+/g, ' ').trim();
+        // Ensure "- letter" has a space after dash in Activity Type column
+        if (key.toLowerCase() === 'activity type') {
+          row[key] = row[key].replace(/-([A-Za-z])/g, '- $1');
+        }
+      }
+    });
+  });
+
+  return { headers, rows, delim };
+}
+
+// ── CSV serialization ────────────────────────────────────────────────────────
+
+function toCSV(headers, rows, delim) {
+  const escape = v => {
+    v = (v || "").toString();
+    if (v.includes(delim) || v.includes('"') || v.indexOf("\n") !== -1) {
+      return '"' + v.replace(/"/g, '""') + '"';
+    }
+    return v;
+  };
+  const lines = [headers.map(escape).join(delim)];
+  rows.forEach(r => lines.push(headers.map(h => escape(r[h] || "")).join(delim)));
+  return lines.join("\r\n");
+}
+
+// ── UI ────────────────────────────────────────────────────────────────────────
+
+let parsedData = null;
+let allRows = [];       // all parsed CSV rows in order
+let csvHeaders = [];
+let csvDelim = ',';
+let logMap = new Map(); // cleanedPeriod → { status ('k'|'r'|'u'), label, parsed, isEmpty, count, rows[], overridden }
+let periodColKey = '';
+
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const clearBtn = document.getElementById('clearBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const results = document.getElementById('results');
+const errorBox = document.getElementById('errorBox');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    parsedData = e.target.result;
+    errorBox.style.display = 'none';
+    results.style.display = 'none';
+    runFilter();
+  };
+  reader.readAsText(file);
+}
+
+clearBtn.addEventListener('click', () => {
+  parsedData = null;
+  fileInput.value = '';
+  document.getElementById('fileName').textContent = '';
+  results.style.display = 'none';
+  errorBox.style.display = 'none';
+  logMap.clear();
+  _actOverrides = {};
+  _pvEntries = new Map();
+  allRows = [];
+});
+
+function runFilter() {
+  errorBox.style.display = 'none';
+  if (!parsedData) return;
+
+  const defaultYear = null; // auto-extrapolated from today
+
+  let parsed;
+  try {
+    parsed = parseCSV(parsedData);
+  } catch(e) {
+    showError('Failed to parse CSV: ' + e.message);
+    return;
+  }
+
+  csvHeaders = parsed.headers;
+  csvDelim = parsed.delim;
+  allRows = parsed.rows;
+
+  const col = csvHeaders.find(h => h.toLowerCase() === 'period');
+  periodColKey = col || '';
+
+  logMap.clear();
+
+  if (col) {
+    parsed.rows.forEach((row) => {
+      const rawPeriod = row[col] || '';
+      const cleaned = cleanStr(rawPeriod);
+      const key = cleaned || '(no period)';
+
+      if (!logMap.has(key)) {
+        if (!cleaned) {
+          logMap.set(key, { status: 'k', label: 'KEPT', parsed: null, isEmpty: true, count: 0, rows: [], overridden: false });
+        } else {
+          const period = parsePeriod(rawPeriod, defaultYear);
+          const active = isActiveToday(period);
+          let status, label;
+          if (active === null) { status = 'k'; label = 'KEPT'; }
+          else if (active)     { status = 'k'; label = 'KEPT'; }
+          else                 { status = 'r'; label = 'REMOVED'; }
+          logMap.set(key, { status, label, parsed: period, isEmpty: false, count: 0, rows: [], overridden: false });
+        }
+      }
+
+      const entry = logMap.get(key);
+      entry.count++;
+      entry.rows.push(row);
+    });
+
+    updateStats();
+    renderPeriodValidation();
+  } else {
+    // No Period column — hide the row log section, treat all rows as kept
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('periodValidationSection').style.display = 'none';
+    allRows.forEach(row => {});  // rows stay in allRows for download
+  }
+
+  const warnings = validateRows(parsed.rows, csvHeaders);
+  renderWarnings(warnings);
+
+  applyPlayFreeFlag(parsed.rows, csvHeaders);
+
+  renderPeriodValidation();
+
+  checkCategoryCoverage();
+
+  updateNextUploadDate();
+
+  results.style.display = 'block';
+}
+
+function updateStats() {
+  let kept = 0, removed = 0;
+  const source = _pvEntries.size > 0 ? _pvEntries : logMap;
+  const seen = new Set();
+  for (const [, e] of source) {
+    e.rows.forEach(r => {
+      if (seen.has(r)) return;
+      seen.add(r);
+      const effStatus = r.__pvStatus || e.status;
+      if (effStatus === 'k' || effStatus === 'u') kept++;
+      else removed++;
+    });
+  }
+  document.getElementById('statTotal').textContent = allRows.length;
+  document.getElementById('statKept').textContent = kept;
+  document.getElementById('statRemoved').textContent = removed;
+}
+
+function renderLog() {
+  const logEl = document.getElementById('logContainer');
+  const sortedEntries = Array.from(logMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+  _sortedLogEntries = sortedEntries;
+  logEl.innerHTML = sortedEntries.map(([key, l], entryIdx) => {
+    let range;
+    if (l.isEmpty) {
+      range = 'no period — kept';
+    } else if (l.parsed) {
+      range = l.parsed.start.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' → ' + l.parsed.end.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    } else {
+      range = 'parse failed';
+    }
+    const countLabel = l.count > 1 ? `<span style="color:#555;font-size:10px;flex-shrink:0;">×${l.count}</span>` : '';
+
+    // Toggle button: show opposite action; fixed (no toggle) for empty periods
+    let toggleBtn = '';
+    if (!l.isEmpty) {
+      if (l.status === 'k' || l.status === 'u') {
+        toggleBtn = `<button class="btn-toggle is-kept" onclick="toggleEntry(${entryIdx})">− Remove</button>`;
+      } else {
+        toggleBtn = `<button class="btn-toggle is-removed" onclick="toggleEntry(${entryIdx})">+ Keep</button>`;
+      }
+      if (l.overridden) {
+        // add a small indicator
+        toggleBtn += `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#ff9947;margin-left:4px;" title="Manually overridden">✎</span>`;
+      }
+    }
+
+    const statusClass = `status-${l.status}`;
+    return `<div class="log-row" id="logrow-${btoa(encodeURIComponent(key)).replace(/[^a-zA-Z0-9]/g,'')}">
+      <span class="${statusClass}">[${l.label}]</span>
+      <span class="period-text" title="Click to see facilities" onclick="openPeriodModal(${entryIdx})">${key}</span>
+      ${countLabel}
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#555;white-space:nowrap;flex-shrink:0;">${range}</span>
+      ${toggleBtn}
+    </div>`;
+  }).join('');
+}
+
+function toggleEntry(idx) {
+  const sortedEntries = Array.from(logMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+  if (idx < 0 || idx >= sortedEntries.length) return;
+  const [, e] = sortedEntries[idx];
+  if (e.isEmpty) return;
+
+  if (e.status === 'r') {
+    e.status = 'k'; e.label = 'KEPT';
+  } else {
+    e.status = 'r'; e.label = 'REMOVED';
+  }
+  e.overridden = true;
+
+  updateStats();
+  renderPeriodValidation();
+  checkCategoryCoverage();
+}
+
+downloadBtn.addEventListener('click', () => {
+  // Build filtered rows respecting current logMap status
+  // If no Period column, download all rows; otherwise use logMap + per-row overrides
+  let keptRows = [];
+  if (logMap.size === 0) {
+    keptRows = allRows.filter(r => r.__pvStatus !== 'r');
+  } else {
+    // Use _pvEntries (per facility+category+period) as source of truth for kept/removed
+    if (_pvEntries.size > 0) {
+      const seen = new Set();
+      for (const [, e] of _pvEntries) {
+        if (e.status === 'k' || e.status === 'u') {
+          e.rows.forEach(r => { if (r.__pvStatus !== 'r' && !seen.has(r)) { seen.add(r); keptRows.push(r); } });
+        } else {
+          e.rows.forEach(r => { if (r.__pvStatus === 'k' && !seen.has(r)) { seen.add(r); keptRows.push(r); } });
+        }
+      }
+    } else {
+      for (const [, e] of logMap) {
+        if (e.status === 'k' || e.status === 'u') {
+          e.rows.forEach(r => { if (r.__pvStatus !== 'r') keptRows.push(r); });
+        } else {
+          e.rows.forEach(r => { if (r.__pvStatus === 'k') keptRows.push(r); });
+        }
+      }
+    }
+    const order = new Map(allRows.map((r, i) => [r, i]));
+    keptRows.sort((a, b) => (order.get(a) || 0) - (order.get(b) || 0));
+  }
+
+  const csv = toCSV(csvHeaders, keptRows, csvDelim);
+  try {
+    // Try Blob URL first
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'ottawa-drop-ins.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  } catch (e) {
+    // Fallback: base64 data URI
+    const bytes = new TextEncoder().encode(csv);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    const uri = 'data:text/csv;charset=utf-8;base64,' + btoa(binary);
+    const a   = document.createElement('a');
+    a.href    = uri;
+    a.download = 'ottawa-drop-ins.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+});
+
+// ── Period Validation (merged row log + overlap) ─────────────────────────────
+
+// Global store: array of period entries keyed by period string (for logMap toggles)
+// and groups keyed by facility+category (for period validation display)
+let _pvGroups = []; // { facility, category, url, periods: [{key, parsed, rows[], keep, logEntry}] }
+
+function periodsOverlap(a, b) {
+  return a.start <= b.end && b.start <= a.end;
+}
+
+function runOverlapCheck() {
+  // No-op: merged into renderPeriodValidation which is called from runFilter
+}
+
+function renderPeriodValidation() {
+  const section   = document.getElementById('periodValidationSection');
+  const container = document.getElementById('periodValidationContainer');
+  if (!section || !container) return;
+
+  const colPeriod   = csvHeaders.find(h => h.toLowerCase() === 'period');
+  const colFacility = csvHeaders.find(h => h.toLowerCase() === 'facility name');
+  const colCategory = csvHeaders.find(h => h.toLowerCase() === 'category');
+  const colActivity = csvHeaders.find(h => h.toLowerCase() === 'activity type');
+  const colUrl      = csvHeaders.find(h => h.toLowerCase() === 'url');
+
+  // Structure: facility → category → period → [activityType rows]
+  // facilityMap: facilityName → { url, categories: Map(category → Map(periodKey → Map(activityType → {rows, logEntry}))) }
+  const facilityMap = new Map();
+
+  allRows.forEach(row => {
+    const facility   = colFacility ? (row[colFacility] || '').trim() : '(no facility)';
+    const cats       = colCategory ? (row[colCategory] || '').split(',').map(c => c.trim()).filter(Boolean) : ['(no category)'];
+    const activity   = colActivity ? (row[colActivity] || '').trim() : '(no activity)';
+    const url        = colUrl      ? (row[colUrl]      || '').trim() : '';
+    const rawPeriod  = colPeriod   ? (row[colPeriod]   || '').trim() : '';
+    const periodKey  = rawPeriod ? cleanStr(rawPeriod) : '(no period)';
+
+    if (!facilityMap.has(facility)) facilityMap.set(facility, { url, categories: new Map() });
+    const fac = facilityMap.get(facility);
+
+    cats.forEach(cat => {
+      if (!fac.categories.has(cat)) fac.categories.set(cat, new Map());
+      const catMap = fac.categories.get(cat);
+      if (!catMap.has(periodKey)) catMap.set(periodKey, new Map());
+      const periodActivities = catMap.get(periodKey);
+      if (!periodActivities.has(activity)) {
+        periodActivities.set(activity, { rows: [], logEntry: null });
+      }
+      periodActivities.get(activity).rows.push(row);
+    });
+  });
+
+  // Build _pvGroups
+  _pvGroups = [];
+  const today = TODAY.getTime();
+
+  for (const [facility, fac] of facilityMap) {
+    const categories = [];
+
+    for (const [category, catMap] of fac.categories) {
+      const periods = [];
+
+      for (const [periodKey, actMap] of catMap) {
+        // Create a per-group synthetic entry for every period so toggling
+        // one facility never affects another sharing the same period string
+        const entryKey = facility + '|||' + category + '|||' + periodKey;
+        if (!_pvEntries.has(entryKey)) {
+          const shared = logMap.get(periodKey);
+          _pvEntries.set(entryKey, {
+            status:   shared ? shared.status  : 'u',
+            label:    shared ? shared.label   : 'KEPT',
+            parsed:   shared ? shared.parsed  : null,
+            isEmpty:  shared ? shared.isEmpty : (periodKey === '(no period)'),
+            count:    0,
+            rows:     [],
+            overridden: false,
+          });
+        }
+        const logEntry = _pvEntries.get(entryKey);
+        // Populate rows and count for this specific group
+        logEntry.rows  = Array.from(actMap.values()).flatMap(d => d.rows);
+        logEntry.count = logEntry.rows.length;
+
+        const parsed = logEntry.parsed;
+        const activities = Array.from(actMap.entries())
+          .map(([activityType, data]) => ({ activityType, rows: data.rows, logEntry }))
+          .sort((a, b) => a.activityType.localeCompare(b.activityType));
+        periods.push({ key: periodKey, parsed, logEntry, activities });
+      }
+
+      // Sort periods by start date
+      periods.sort((a, b) => {
+        if (a.parsed && b.parsed) return a.parsed.start - b.parsed.start;
+        if (a.parsed) return -1;
+        if (b.parsed) return 1;
+        return a.key.localeCompare(b.key);
+      });
+
+      // Unknown/empty period logic:
+      // - only period available → KEPT
+      // - other periods exist for same facility+category → REMOVED
+      if (periods.length === 1) {
+        const p = periods[0];
+        if (p.logEntry && !p.logEntry.overridden && (p.logEntry.status === 'u' || p.logEntry.isEmpty)) {
+          p.logEntry.status = 'k';
+          p.logEntry.label = 'KEPT';
+        }
+      } else {
+        periods.forEach(p => {
+          if (p.logEntry && !p.logEntry.overridden && (p.logEntry.status === 'u' || p.logEntry.isEmpty)) {
+            p.logEntry.status = 'r';
+            p.logEntry.label = 'REMOVED';
+          }
+        });
+      }
+
+      // Auto-mark overlapping periods:
+      // Priority 1: period that contains today
+      // Priority 2: period whose start is closest to today
+      // Priority 3: shorter period
+      for (let i = 0; i < periods.length; i++) {
+        for (let j = i + 1; j < periods.length; j++) {
+          const a = periods[i], b = periods[j];
+          if (!a.parsed || !b.parsed) continue;
+          if (a.parsed.start <= b.parsed.end && b.parsed.start <= a.parsed.end) {
+            if (a.logEntry && b.logEntry && !a.logEntry.overridden && !b.logEntry.overridden) {
+              const aContainsToday = a.parsed.start.getTime() <= today && today <= a.parsed.end.getTime();
+              const bContainsToday = b.parsed.start.getTime() <= today && today <= b.parsed.end.getTime();
+              const distA = Math.abs(a.parsed.start.getTime() - today);
+              const distB = Math.abs(b.parsed.start.getTime() - today);
+              const durA  = a.parsed.end.getTime() - a.parsed.start.getTime();
+              const durB  = b.parsed.end.getTime() - b.parsed.start.getTime();
+
+              let keepA;
+              if (aContainsToday && !bContainsToday)      keepA = true;
+              else if (!aContainsToday && bContainsToday) keepA = false;
+              else if (distA !== distB)                   keepA = distA < distB;
+              else                                        keepA = durA <= durB;
+
+              if (keepA) {
+                a.logEntry.status = 'k'; a.logEntry.label = 'KEPT';
+                b.logEntry.status = 'r'; b.logEntry.label = 'REMOVED';
+              } else {
+                b.logEntry.status = 'k'; b.logEntry.label = 'KEPT';
+                a.logEntry.status = 'r'; a.logEntry.label = 'REMOVED';
+              }
+            }
+          }
+        }
+      }
+
+      categories.push({ category, periods });
+    }
+
+    categories.sort((a, b) => a.category.localeCompare(b.category));
+    _pvGroups.push({ facility, url: fac.url, categories });
+  }
+
+  _pvGroups.sort((a, b) => a.facility.localeCompare(b.facility));
+
+  updateStats();
+  renderPVGroups();
+  section.style.display = _pvGroups.length > 0 ? 'block' : 'none';
+}
+
+function renderPVGroups() {
+  const container = document.getElementById('periodValidationContainer');
+  const sortedLogEntries = Array.from(logMap.entries()).sort(([a],[b]) => a.localeCompare(b));
+
+  container.innerHTML = _pvGroups.map((g, gi) => {
+    const facilityLink = g.url
+      ? `<a href="${g.url}" target="_blank" style="color:var(--accent2);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;text-decoration:none;border-bottom:1px dotted rgba(71,255,232,0.4);">${g.facility} ↗</a>`
+      : `<span style="color:var(--accent2);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;">${g.facility}</span>`;
+
+    const categoriesHtml = g.categories.map((cat, ci) => {
+      const hasActive  = cat.periods.some(p => p.logEntry && (p.logEntry.status === 'k' || p.logEntry.status === 'u'));
+      const hasOverlap = (() => {
+        for (let i = 0; i < cat.periods.length; i++)
+          for (let j = i+1; j < cat.periods.length; j++) {
+            const a = cat.periods[i].parsed, b = cat.periods[j].parsed;
+            if (a && b && a.start <= b.end && b.start <= a.end) return true;
+          }
+        return false;
+      })();
+
+      const badges = [
+        hasOverlap  ? '<span class="pv-warn-badge pv-warn-overlap">OVERLAP</span>'   : '',
+        !hasActive  ? '<span class="pv-warn-badge pv-warn-inactive">NO ACTIVE</span>' : '',
+      ].filter(Boolean).join('');
+
+      // Period-level rows (category-wide toggle)
+      const periodsHtml = cat.periods.map((p, pi) => {
+        const e = p.logEntry;
+        const statusClass = !e ? 'pv-status-k' : e.status === 'k' ? 'pv-status-k' : e.status === 'r' ? 'pv-status-r' : 'pv-status-k';
+        const statusLabel = !e ? '[KEPT]' : e.status === 'k' ? '[KEPT]' : e.status === 'r' ? '[REMOVED]' : '[KEPT]';
+        const range = p.parsed
+          ? p.parsed.start.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' → ' + p.parsed.end.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+          : '';
+        // Reason badge for removed periods
+        let reasonBadge = '';
+        if (e && e.status === 'r' && p.parsed && !e.overridden) {
+          const futureStyle = 'font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:600;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;background:rgba(255,153,71,0.12);color:#ff9947;border:1px solid rgba(255,153,71,0.3);white-space:nowrap;';
+          const endedStyle  = 'font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:600;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;background:rgba(180,127,255,0.12);color:#b47fff;border:1px solid rgba(180,127,255,0.3);white-space:nowrap;';
+          if (p.parsed.start.getTime() > TODAY.getTime()) {
+            reasonBadge = `<span style="${futureStyle}">STARTS IN FUTURE</span>`;
+          } else if (p.parsed.end.getTime() < TODAY.getTime()) {
+            reasonBadge = `<span style="${endedStyle}">ENDED</span>`;
+          }
+        }
+        const toggleClass = e && (e.status === 'k' || e.status === 'u') ? 'is-kept' : 'is-removed';
+        const toggleLabel = e && (e.status === 'k' || e.status === 'u') ? '− Remove all' : '+ Keep all';
+        const canToggle = e && !e.isEmpty;
+
+        // Activity types under this period
+        const activitiesHtml = p.activities.map((act, acti) => {
+          // Each activity type row has its own independent kept/removed state stored per-row
+          // We track overrides in a separate map: _actOverrides[gi][ci][pi][acti]
+          const override = getActOverride(gi, ci, pi, acti);
+          // Effective status: if override set, use it; else inherit from period logEntry
+          const effStatus = override !== null ? override : (e ? e.status : 'u');
+          const actStatusClass = effStatus === 'r' ? 'pv-status-r' : 'pv-status-k';
+          const actStatusLabel = effStatus === 'r' ? '[REMOVED]' : '[KEPT]';
+          const actToggleClass = effStatus === 'k' || effStatus === 'u' ? 'is-kept' : 'is-removed';
+          const actToggleLabel = effStatus === 'k' || effStatus === 'u' ? '− Remove' : '+ Keep';
+          const isOverridden = override !== null;
+
+          return `<div class="pv-period-row" style="padding-left:32px;background:#0d0d0d;">
+            <span class="${actStatusClass}" style="min-width:80px;">${actStatusLabel}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#888;flex:1;">${act.activityType}</span>
+            <span class="pv-count">×${act.rows.length}</span>
+            <button class="btn-toggle ${actToggleClass}" onclick="toggleActivityRow(${gi},${ci},${pi},${acti})">${actToggleLabel}</button>
+            ${isOverridden ? '<span style="font-size:9px;color:#ff9947;" title="Manually overridden">✎</span>' : ''}
+          </div>`;
+        }).join('');
+
+        return `<div style="border-top:1px solid #1a1a1a;">
+          <div class="pv-period-row">
+            <span class="${statusClass}" style="min-width:80px;">${statusLabel}</span>
+            <span class="pv-period-text" onclick="openPVModal(${gi},${ci},${pi})" title="Click to see rows">${p.key}</span>
+            ${reasonBadge}
+            <span class="pv-range">${range}</span>
+            <span class="pv-count">×${e ? e.count : '?'}</span>
+            ${canToggle ? `<button class="btn-toggle ${toggleClass}" onclick="toggleCategoryPeriod(${gi},${ci},${pi})">${toggleLabel}</button>` : ''}
+            ${e && e.overridden ? '<span style="font-size:9px;color:#ff9947;" title="Manually overridden">✎</span>' : ''}
+          </div>
+          ${activitiesHtml}
+        </div>`;
+      }).join('');
+
+      return `<div style="border-top:1px solid #252525;padding:8px 0 4px 16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#ccc;">${cat.category}</span>
+          ${badges}
+        </div>
+        ${periodsHtml}
+      </div>`;
+    }).join('');
+
+    return `<div class="pv-group">
+      <div class="pv-group-header" style="background:#111;padding:10px 14px;">
+        ${facilityLink}
+      </div>
+      ${categoriesHtml}
+    </div>`;
+  }).join('');
+}
+
+// Per-activity overrides: _actOverrides[gi][ci][pi][acti] = 'k' | 'r' | null
+let _actOverrides = {};
+let _pvEntries = new Map(); // facility|||category|||periodKey → independent logEntry per group
+
+function getActOverride(gi, ci, pi, acti) {
+  try { return _actOverrides[gi][ci][pi][acti] ?? null; } catch { return null; }
+}
+
+function setActOverride(gi, ci, pi, acti, val) {
+  if (!_actOverrides[gi]) _actOverrides[gi] = {};
+  if (!_actOverrides[gi][ci]) _actOverrides[gi][ci] = {};
+  if (!_actOverrides[gi][ci][pi]) _actOverrides[gi][ci][pi] = {};
+  _actOverrides[gi][ci][pi][acti] = val;
+}
+
+function toggleActivityRow(gi, ci, pi, acti) {
+  const p   = _pvGroups[gi].categories[ci].periods[pi];
+  const act = p.activities[acti];
+  const e   = p.logEntry;
+  const current = getActOverride(gi, ci, pi, acti) ?? (e ? e.status : 'u');
+  const next = (current === 'k' || current === 'u') ? 'r' : 'k';
+  setActOverride(gi, ci, pi, acti, next);
+
+  // Apply to actual rows
+  act.rows.forEach(row => {
+    // Mark rows individually — we store a per-row override flag
+    row.__pvStatus = next;
+  });
+
+  renderPVGroups();
+  updateStats();
+  checkCategoryCoverage();
+}
+
+function toggleCategoryPeriod(gi, ci, pi) {
+  const p = _pvGroups[gi].categories[ci].periods[pi];
+  const e = p.logEntry;
+  if (!e || e.isEmpty) return;
+
+  // Toggle the period-level logEntry
+  if (e.status === 'r') { e.status = 'k'; e.label = 'KEPT'; }
+  else                  { e.status = 'r'; e.label = 'REMOVED'; }
+  e.overridden = true;
+
+  // Clear activity-level overrides for this period so they inherit the new state
+  if (_actOverrides[gi] && _actOverrides[gi][ci] && _actOverrides[gi][ci][pi]) {
+    _actOverrides[gi][ci][pi] = {};
+  }
+  // Reset per-row overrides for rows in this period
+  p.activities.forEach(act => {
+    act.rows.forEach(row => { delete row.__pvStatus; });
+  });
+
+  updateStats();
+  renderPVGroups();
+  checkCategoryCoverage();
+}
+
+
+function openPVModal(gi, ci, pi) {
+  const g   = _pvGroups[gi];
+  const cat = g.categories[ci];
+  const p   = cat.periods[pi];
+  const colUrl = csvHeaders.find(h => h.toLowerCase() === 'url');
+
+  // Show all rows for this period entry
+  // Collect all rows across all activity types for this period
+  const rows = p && p.activities ? p.activities.flatMap(a => a.rows) : (p && p.logEntry ? p.logEntry.rows : []);
+  const colActivity = csvHeaders.find(h => h.toLowerCase() === 'activity type');
+  const colAge      = csvHeaders.find(h => h.toLowerCase() === 'age');
+
+  // Deduplicate by activity + age
+  const seen = new Set();
+  const deduped = rows.filter(row => {
+    const k = [
+      colActivity ? (row[colActivity] || '') : '',
+      colAge      ? (row[colAge]      || '') : '',
+    ].join('|||');
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  document.getElementById('modalTitle').textContent = p.key;
+  document.getElementById('modalCount').textContent = rows.length + ' row' + (rows.length !== 1 ? 's' : '');
+  document.getElementById('modalBody').innerHTML = deduped.length === 0
+    ? '<div class="modal-facility-row" style="color:#555;">No rows found</div>'
+    : deduped.map(row => {
+        const activity = colActivity ? (row[colActivity] || '').trim() : '';
+        const age      = colAge      ? (row[colAge]      || '').trim() : '';
+        const url      = colUrl      ? (row[colUrl]      || '').trim() : '';
+        const label    = [activity, age].filter(Boolean).join(' — ');
+        return `<div class="modal-facility-row">
+          ${url
+            ? `<a href="${url}" target="_blank" class="modal-facility-link">${label || '(no details)'} ↗</a>`
+            : `<span class="modal-facility-nolink">${label || '(no details)'}</span>`
+          }
+        </div>`;
+      }).join('');
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function applyOverlapDecisions() {
+  // No-op: decisions are already reflected in logMap via toggleEntry
+}
+
+
+// ── Validation ───────────────────────────────────────────────────────────────
+
+const VALID = {
+  'time of day': new Set(['AM','PM','Evening']),
+  'age':         new Set(['50+','Adult','Children','Preschool','Youth']),
+  'category':    new Set(['Fitness','Group Fitness','Gym Sport','Other','Racquet Sport','Skating','Swimming']),
+  'day':         new Set(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']),
+  'swim type':   new Set(['Aquafit','Lane Swim','Other','Public Swim']),
+};
+
+function validateRows(rows, headers) {
+  const warnings = [];
+  const areaWarningMap = new Map();    // address → { address, rows[], colArea }
+  const categoryWarningMap = new Map(); // lineNum → { row, colCategory, lineNum }
+
+  const findCol = name => headers.find(h => h.toLowerCase() === name.toLowerCase());
+
+  const colTimeOfDay   = findCol('Time of Day');
+  const colAge         = findCol('Age');
+  const colDay         = findCol('Day');
+  const colSwimType    = findCol('Swim Type');
+  const colArea        = findCol('Area');
+  const colTime        = findCol('Time');
+  const colSort        = findCol('Sort Order');
+  const colRegRequired = findCol('Registration Required');
+  const colReservation = findCol('Reservation');
+  const colFacilityG   = findCol('Facility Name');
+  const colUrlG        = findCol('URL');
+
+  rows.forEach((row, idx) => {
+    const lineNum = idx + 2;
+
+    function checkTokens(colName, col, validSet) {
+      if (!col) return;
+      const val = (row[col] || '').trim();
+      if (!val) return;
+      const tokens = val.split(',').map(t => t.trim()).filter(Boolean);
+      tokens.forEach(token => {
+        if (!validSet.has(token)) {
+          warnings.push({ line: lineNum, col: colName, msg: `Invalid value: <em>${token}</em>` });
+        }
+      });
+    }
+
+    checkTokens('Time of Day', colTimeOfDay, VALID['time of day']);
+    checkTokens('Age',         colAge,       VALID['age']);
+    checkTokens('Day',         colDay,       VALID['day']);
+    if (colSwimType) checkTokens('Swim Type', colSwimType, VALID['swim type']);
+
+    // Category: flag Uncategorized separately with a fix dropdown; flag other invalids normally
+    const colCategory = findCol('Category');
+    if (colCategory) {
+      const val = (row[colCategory] || '').trim();
+      if (val) {
+        const tokens = val.split(',').map(t => t.trim()).filter(Boolean);
+        tokens.forEach(token => {
+          if (token.toLowerCase() === 'uncategorized') {
+            if (!categoryWarningMap.has(lineNum)) {
+              const colActivity = findCol('Activity Type');
+              const colFacility = findCol('Facility Name');
+              const colUrl      = findCol('URL');
+              const activityVal = colActivity ? (row[colActivity] || '').trim() : '';
+              const facilityVal = colFacility ? (row[colFacility] || '').trim() : '';
+              const urlVal      = colUrl      ? (row[colUrl]      || '').trim() : '';
+              categoryWarningMap.set(lineNum, { row, colCategory, lineNum, activityType: activityVal, facility: facilityVal, url: urlVal });
+            }
+          } else if (!VALID['category'].has(token)) {
+            warnings.push({ line: lineNum, col: 'Category', msg: `Invalid value: <em>${token}</em>` });
+          }
+        });
+      }
+    }
+
+    // Area: warn if "Area not found"
+    if (colArea) {
+      const areaVal = (row[colArea] || '').trim();
+      if (areaVal.toLowerCase() === 'area not found') {
+        const colAddress  = headers.find(h => h.toLowerCase() === 'address');
+        const addressVal  = colAddress ? (row[colAddress] || '').trim() : '';
+        const mapKey      = addressVal || '__unknown__';
+        if (!areaWarningMap.has(mapKey)) {
+          const colFacility = headers.find(h => h.toLowerCase() === 'facility name');
+          const colUrl      = headers.find(h => h.toLowerCase() === 'url');
+          const facilityVal = colFacility ? (row[colFacility] || '').trim() : '';
+          const urlVal      = colUrl ? (row[colUrl] || '').trim() : '';
+          areaWarningMap.set(mapKey, { address: addressVal, rows: [], colArea, facility: facilityVal, url: urlVal });
+        }
+        areaWarningMap.get(mapKey).rows.push(row);
+      }
+    }
+
+    // Time: warn if end time < start time, or if activity is before 7 AM or after 10 PM
+    if (colTime) {
+      const timeVal   = (row[colTime] || '').trim();
+      const timeMatch = timeVal.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+        const endMins   = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
+        const colFacilityT = findCol('Facility Name');
+        const colUrlT      = findCol('URL');
+        const colActivityT = findCol('Activity Type');
+        const facilityT    = colFacilityT ? (row[colFacilityT] || '').trim() : '';
+        const urlT         = colUrlT      ? (row[colUrlT]      || '').trim() : '';
+        const activityT    = colActivityT ? (row[colActivityT] || '').trim() : '';
+        if (endMins < startMins) {
+          warnings.push({ line: lineNum, col: 'Time', msg: `End time <em>${timeMatch[3]}:${timeMatch[4]}</em> is before start time <em>${timeMatch[1]}:${timeMatch[2]}</em>`, facility: facilityT, url: urlT, activityType: activityT });
+        }
+        if (startMins < 6 * 60) {
+          warnings.push({ line: lineNum, col: 'Time', msg: `Start time <em>${timeMatch[1]}:${timeMatch[2]}</em> is before 6:00 AM`, facility: facilityT, url: urlT, activityType: activityT });
+        }
+        if (endMins > 23 * 60) {
+          warnings.push({ line: lineNum, col: 'Time', msg: `End time <em>${timeMatch[3]}:${timeMatch[4]}</em> is after 11:00 PM`, facility: facilityT, url: urlT, activityType: activityT });
+        }
+      }
+    }
+
+    // Sort Order: must be 1-7
+    if (colSort) {
+      const sortVal = (row[colSort] || '').trim();
+      if (sortVal !== '') {
+        const n = Number(sortVal);
+        if (isNaN(n) || n < 1 || n > 7 || !Number.isInteger(n)) {
+          warnings.push({ line: lineNum, col: 'Sort Order', msg: `Invalid value: <em>${sortVal}</em> (must be 1–7)` });
+        }
+      }
+    }
+
+    // Registration Required = "Yes" but Reservation = "#"
+    // Registration Required = "No" but Reservation is not "#"
+    if (colRegRequired && colReservation) {
+      const regVal      = (row[colRegRequired] || '').trim();
+      const resVal      = (row[colReservation] || '').trim();
+      const facilityVal = colFacilityG ? (row[colFacilityG] || '').trim() : '';
+      const urlVal      = colUrlG      ? (row[colUrlG]      || '').trim() : '';
+      const colActivity  = findCol('Activity Type');
+      const activityVal  = colActivity ? (row[colActivity] || '').trim() : '';
+      const colCategoryR = findCol('Category');
+      const categoryVal  = colCategoryR ? (row[colCategoryR] || '').trim() : '';
+      if (regVal.toLowerCase() === 'yes' && resVal === '#') {
+        warnings.push({ line: lineNum, col: 'Registration',
+          msg: `Registration Required is <em>Yes</em> but Reservation is <em>#</em>`,
+          isRegistration: true, row, facility: facilityVal, url: urlVal,
+          activityType: activityVal, category: categoryVal });
+      }
+      if (regVal.toLowerCase() === 'no' && resVal !== '#' && resVal !== '') {
+        warnings.push({ line: lineNum, col: 'Registration',
+          msg: `Registration Required is <em>No</em> but Reservation is <em>${resVal}</em>`,
+          isRegistration: true, row, facility: facilityVal, url: urlVal,
+          activityType: activityVal, category: categoryVal });
+      }
+    }
+  });
+
+  // Convert areaWarningMap into deduplicated warnings
+  for (const [, entry] of areaWarningMap) {
+    warnings.push({ col: 'Area', msg: `Value is <em>Area not found</em>`,
+      isArea: true, address: entry.address, rows: entry.rows,
+      colArea: entry.colArea, facility: entry.facility, url: entry.url });
+  }
+
+  // Convert categoryWarningMap into warnings
+  for (const [, entry] of categoryWarningMap) {
+    warnings.push({ col: 'Category', msg: `Value is <em>Uncategorized</em>`,
+      isCategory: true, row: entry.row, colCategory: entry.colCategory,
+      line: entry.lineNum, activityType: entry.activityType,
+      facility: entry.facility, url: entry.url });
+  }
+
+  return warnings;
+}
+
+function applyAreaFix(wi, selectEl) {
+  const val  = selectEl.value.trim();
+  const w    = window._lastWarnings[wi];
+  const newVal = val || 'Area not found';
+  w.rows.forEach(row => { row[w.colArea] = newVal; });
+  if (val) { selectEl.style.borderColor = 'var(--success)'; selectEl.style.color = 'var(--success)'; }
+}
+
+function applyCategoryFix(wi, selectEl) {
+  const val  = selectEl.value.trim();
+  const w    = window._lastWarnings[wi];
+  const newVal = val || 'Uncategorized';
+  if (w.row) { w.row[w.colCategory] = newVal; }
+  if (val)   { selectEl.style.borderColor = 'var(--success)'; selectEl.style.color = 'var(--success)'; }
+}
+
+function applyRegistrationFix(wi, field, val) {
+  if (!val || !val.trim()) return;
+  val = val.trim();
+  const w   = window._lastWarnings[wi];
+  const row = w.row;
+  if (!row) return;
+  if (field === 'regRequired') {
+    const col = Object.keys(row).find(k => k.toLowerCase() === 'registration required');
+    if (col) {
+      row[col] = val;
+      document.querySelectorAll('.reg-fix-select').forEach(s => {
+        if (s.dataset.wi === String(wi)) { s.style.borderColor = 'var(--success)'; s.style.color = 'var(--success)'; }
+      });
+    }
+  } else if (field === 'reservation') {
+    const col = Object.keys(row).find(k => k.toLowerCase() === 'reservation');
+    if (col) {
+      row[col] = val;
+      document.querySelectorAll('.reg-fix-input').forEach(s => {
+        if (s.dataset.wi === String(wi)) { s.style.borderColor = 'var(--success)'; }
+      });
+    }
+  }
+}
+
+function applyRegistrationFixAll(wi) {
+  const w = window._lastWarnings[wi];
+  if (!w || !w.row) return;
+  let regVal = null, resVal = null;
+  document.querySelectorAll('.reg-fix-select').forEach(s => { if (s.dataset.wi === String(wi) && s.value) regVal = s.value; });
+  document.querySelectorAll('.reg-fix-input').forEach(s  => { if (s.dataset.wi === String(wi) && s.value.trim()) resVal = s.value.trim(); });
+  if (!regVal && !resVal) { alert('Please select a Reg. Required value or enter a reservation URL first.'); return; }
+  const matchFacility = w.facility;
+  const matchCategory = w.category;
+  let count = 0;
+  window._lastWarnings.forEach((other, oi) => {
+    if (!other.isRegistration || !other.row) return;
+    if (other.facility !== matchFacility || other.category !== matchCategory) return;
+    if (regVal) {
+      const col = Object.keys(other.row).find(k => k.toLowerCase() === 'registration required');
+      if (col) other.row[col] = regVal;
+      document.querySelectorAll('.reg-fix-select').forEach(s => {
+        if (s.dataset.wi === String(oi)) { s.value = regVal; s.style.borderColor = 'var(--success)'; s.style.color = 'var(--success)'; }
+      });
+    }
+    if (resVal) {
+      const col = Object.keys(other.row).find(k => k.toLowerCase() === 'reservation');
+      if (col) other.row[col] = resVal;
+      document.querySelectorAll('.reg-fix-input').forEach(s => {
+        if (s.dataset.wi === String(oi)) { s.value = resVal; s.style.borderColor = 'var(--success)'; }
+      });
+    }
+    count++;
+  });
+  const btns = document.querySelectorAll('button[onclick^="applyRegistrationFixAll"]');
+  btns.forEach(b => {
+    if (b.getAttribute('onclick') === `applyRegistrationFixAll(${wi})`) {
+      b.textContent = `✓ Applied to ${count} row${count !== 1 ? 's' : ''}`;
+      b.style.borderColor = 'var(--success)'; b.style.color = 'var(--success)';
+    }
+  });
+}
+
+function renderWarnings(warnings) {
+  const section   = document.getElementById('warnSection');
+  const container = document.getElementById('warnContainer');
+  const countEl   = document.getElementById('warnCount');
+  if (warnings.length === 0) { section.style.display = 'none'; return; }
+  window._lastWarnings = warnings;
+  countEl.textContent  = warnings.length;
+  const inputStyle = `background:#111;border:1px solid #444;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 8px;border-radius:2px;outline:none;`;
+  container.innerHTML  = warnings.map((w, wi) => {
+    if (w.isArea) {
+      const mapsUrl     = w.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(w.address + ', Ottawa, Canada')}` : '';
+      const rowCount    = w.rows ? w.rows.length : 1;
+      const addrHtml    = w.address ? `<a href="${mapsUrl}" target="_blank" style="color:var(--accent2);font-size:10px;margin-left:4px;text-decoration:none;border-bottom:1px dotted rgba(71,255,232,0.4);" title="Open in Google Maps">${w.address} ↗</a>` : '<span style="color:#555;font-size:10px;">No address</span>';
+      const rowsNote    = rowCount > 1 ? `<span style="color:#555;font-size:10px;margin-left:6px;">(affects ${rowCount} rows)</span>` : '';
+      const facilityHtml = w.facility ? (w.url ? `<span style="color:#555;font-size:10px;margin-left:8px;">|</span> <a href="${w.url}" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none;border-bottom:1px dotted rgba(232,255,71,0.4);">${w.facility} ↗</a>` : `<span style="color:#777;font-size:10px;margin-left:8px;">| ${w.facility}</span>`) : '';
+      return `<div class="warn-row" style="flex-wrap:wrap;gap:6px;">
+        <span class="warn-line" style="min-width:52px;">Area</span>
+        <span class="warn-col">${w.col}</span>
+        <span class="warn-msg" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${w.msg} — ${addrHtml}${rowsNote}${facilityHtml}</span>
+        <div class="warn-area-fix" style="display:flex;align-items:center;gap:6px;width:100%;padding-left:180px;">
+          <select onchange="applyAreaFix(${wi},this)" style="${inputStyle}">
+            <option value="">— Select area —</option>
+            <option>Central</option><option>East - Orleans</option><option>East - Vanier</option>
+            <option>South</option><option>West</option><option>West - Barrhaven</option>
+            <option>West - Kanata</option><option>West - Nepean</option><option>West - Stittsville</option>
+          </select>
+        </div>
+      </div>`;
+    }
+    if (w.isRegistration) {
+      const regFacilityHtml = w.facility ? (w.url ? `<a href="${w.url}" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none;border-bottom:1px dotted rgba(232,255,71,0.4);">${w.facility} ↗</a>` : `<span style="color:#777;font-size:10px;">${w.facility}</span>`) : '';
+      const regActivityHtml = w.activityType ? `<span style="color:#777;font-size:10px;margin-left:4px;">| Activity: <em style="color:#aaa;">${w.activityType}</em></span>` : '';
+      return `<div class="warn-row" style="flex-wrap:wrap;gap:6px;">
+        <span class="warn-line">Line ${w.line}</span>
+        <span class="warn-col">${w.col}</span>
+        <span class="warn-msg" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${w.msg}${regFacilityHtml ? ' — ' + regFacilityHtml : ''}${regActivityHtml}</span>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;padding-left:180px;flex-wrap:wrap;">
+          <select class="reg-fix-select" data-wi="${wi}" onchange="applyRegistrationFix(${wi},'regRequired',this.value,false)" style="${inputStyle}">
+            <option value="">— Change Reg. Required —</option>
+            <option value="Yes">Yes</option><option value="No">No</option>
+          </select>
+          <span style="color:#555;font-size:10px;">or</span>
+          <input type="text" class="reg-fix-input" data-wi="${wi}" placeholder="Enter reservation URL…" style="${inputStyle}flex:1;max-width:320px;"
+            onchange="applyRegistrationFix(${wi},'reservation',this.value,false)"
+            onkeydown="if(event.key==='Enter')applyRegistrationFix(${wi},'reservation',this.value,false)">
+          <button onclick="applyRegistrationFixAll(${wi})" title="Apply to all rows with same facility + category"
+            style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;letter-spacing:0.1em;padding:4px 10px;background:transparent;border:1px solid rgba(255,153,71,0.5);color:#ff9947;border-radius:2px;cursor:pointer;white-space:nowrap;">
+            ⚡ Apply to all matching
+          </button>
+        </div>
+      </div>`;
+    }
+    if (w.isCategory) {
+      const catFacilityHtml = w.facility ? (w.url ? `<a href="${w.url}" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none;border-bottom:1px dotted rgba(232,255,71,0.4);">${w.facility} ↗</a>` : `<span style="color:#777;font-size:10px;">${w.facility}</span>`) : '';
+      const activityHtml    = w.activityType ? `<span style="color:#777;font-size:10px;margin-left:4px;">| Activity: <em style="color:#aaa;">${w.activityType}</em></span>` : '';
+      return `<div class="warn-row" style="flex-wrap:wrap;gap:6px;">
+        <span class="warn-line">Line ${w.line}</span>
+        <span class="warn-col">${w.col}</span>
+        <span class="warn-msg" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${w.msg}${catFacilityHtml ? ' — ' + catFacilityHtml : ''}${activityHtml}</span>
+        <div style="display:flex;align-items:center;gap:6px;width:100%;padding-left:180px;">
+          <select onchange="applyCategoryFix(${wi},this)" style="${inputStyle}flex:1;max-width:280px;">
+            <option value="">— Select category —</option>
+            <option>Fitness</option><option>Group Fitness</option><option>Gym Sport</option>
+            <option>Other</option><option>Racquet Sport</option><option>Skating</option><option>Swimming</option>
+          </select>
+        </div>
+      </div>`;
+    }
+    // For time warnings, show facility (clickable) and activity type
+    if (w.col === 'Time' && (w.facility || w.activityType)) {
+      const facHtml = w.facility
+        ? (w.url ? `<a href="${w.url}" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none;border-bottom:1px dotted rgba(232,255,71,0.4);">${w.facility} ↗</a>` : `<span style="color:#777;font-size:10px;">${w.facility}</span>`)
+        : '';
+      const actHtml = w.activityType ? `<span style="color:#777;font-size:10px;margin-left:4px;">| Activity: <em style="color:#aaa;">${w.activityType}</em></span>` : '';
+      return `<div class="warn-row" style="flex-wrap:wrap;gap:4px;">
+        <span class="warn-line">Line ${w.line}</span>
+        <span class="warn-col">${w.col}</span>
+        <span class="warn-msg" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${w.msg}${facHtml ? ' — ' + facHtml : ''}${actHtml}</span>
+      </div>`;
+    }
+    return `<div class="warn-row">
+      <span class="warn-line">Line ${w.line}</span>
+      <span class="warn-col">${w.col}</span>
+      <span class="warn-msg">${w.msg}</span>
+    </div>`;
+  }).join('');
+  section.style.display = 'block';
+}
+
+// ── Play Free Flag propagation ───────────────────────────────────────────────
+
+function applyPlayFreeFlag(rows, headers) {
+  const colFlag     = headers.find(h => h.toLowerCase() === 'play free flag');
+  const colDay      = headers.find(h => h.toLowerCase() === 'day');
+  const colFacility = headers.find(h => h.toLowerCase() === 'facility name');
+  const colActivity = headers.find(h => h.toLowerCase() === 'activity type');
+  const colAge      = headers.find(h => h.toLowerCase() === 'age');
+  const colUrl      = headers.find(h => h.toLowerCase() === 'url');
+
+  const section   = document.getElementById('playFreeSection');
+  const container = document.getElementById('playFreeContainer');
+  const countEl   = document.getElementById('playFreeCount');
+
+  if (!colFlag) { section.style.display = 'none'; return; }
+
+  const trueKeys = new Set();
+  rows.forEach(row => {
+    const flag = (row[colFlag] || '').trim().toLowerCase();
+    if (flag === 'true' || flag === '1' || flag === 'yes') {
+      const key = [
+        colDay      ? (row[colDay]      || '').trim() : '',
+        colFacility ? (row[colFacility] || '').trim() : '',
+        colActivity ? (row[colActivity] || '').trim() : '',
+      ].join('|||');
+      trueKeys.add(key);
+    }
+  });
+
+  if (trueKeys.size === 0) { section.style.display = 'none'; return; }
+
+  const changed = [];
+  rows.forEach(row => {
+    const flag = (row[colFlag] || '').trim().toLowerCase();
+    if (flag === 'true' || flag === '1' || flag === 'yes') return;
+    const key = [
+      colDay      ? (row[colDay]      || '').trim() : '',
+      colFacility ? (row[colFacility] || '').trim() : '',
+      colActivity ? (row[colActivity] || '').trim() : '',
+    ].join('|||');
+    if (trueKeys.has(key)) {
+      row[colFlag] = 'True';
+      changed.push({
+        day:      colDay      ? (row[colDay]      || '').trim() : '—',
+        facility: colFacility ? (row[colFacility] || '').trim() : '—',
+        activity: colActivity ? (row[colActivity] || '').trim() : '—',
+        age:      colAge      ? (row[colAge]      || '').trim() : '—',
+        url:      colUrl      ? (row[colUrl]      || '').trim() : '',
+      });
+    }
+  });
+
+  if (changed.length === 0) { section.style.display = 'none'; return; }
+
+  const seen = new Set();
+  const deduped = changed.filter(r => {
+    const k = [r.day, r.facility, r.activity, r.age].join('|||');
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  countEl.textContent = changed.length + ' row' + (changed.length !== 1 ? 's' : '');
+  container.innerHTML = deduped.map(r => {
+    const facilityHtml = r.url
+      ? `<a href="${r.url}" target="_blank" style="color:var(--accent2);text-decoration:none;border-bottom:1px dotted rgba(71,255,232,0.4);">${r.facility} ↗</a>`
+      : `<span style="color:#aaa;">${r.facility}</span>`;
+    return `<div class="warn-row">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);min-width:90px;flex-shrink:0;">${r.day}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;flex:1;">${facilityHtml}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#777;flex:1;">${r.activity}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#555;flex-shrink:0;">${r.age}</span>
+    </div>`;
+  }).join('');
+  section.style.display = 'block';
+}
+
+// ── Next upload date ──────────────────────────────────────────────────────────
+
+function updateNextUploadDate() {
+  const t = TODAY.getTime();
+  let nearest = null;
+  for (const [, e] of logMap) {
+    if (!e.parsed) continue;
+    if (e.parsed.start.getTime() > t) {
+      if (!nearest || e.parsed.start < nearest) nearest = e.parsed.start;
+    }
+    if (e.parsed.end.getTime() > t) {
+      if (!nearest || e.parsed.end < nearest) nearest = e.parsed.end;
+    }
+  }
+  const note   = document.getElementById('nextUploadNote');
+  const dateEl = document.getElementById('nextUploadDate');
+  if (nearest) {
+    dateEl.textContent = nearest.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
+  }
+}
+
+// ── Category coverage check ──────────────────────────────────────────────────
+
+function checkCategoryCoverage() {
+  const section   = document.getElementById('categoryCoverageSection');
+  const container = document.getElementById('categoryCoverageContainer');
+  const countEl   = document.getElementById('categoryCoverageCount');
+
+  const colCategory = csvHeaders.find(h => h.toLowerCase() === 'category');
+  if (!colCategory) { section.style.display = 'none'; return; }
+
+  // Build map: category → { hasKept: bool }
+  const categoryMap = new Map();
+
+  for (const [, e] of logMap) {
+    e.rows.forEach(row => {
+      const cats = (row[colCategory] || '').split(',').map(c => c.trim()).filter(Boolean);
+      cats.forEach(cat => {
+        if (!categoryMap.has(cat)) categoryMap.set(cat, { hasKept: false });
+        if (e.status === 'k' || e.status === 'u') {
+          categoryMap.get(cat).hasKept = true;
+        }
+      });
+    });
+  }
+
+  // Also check rows with no period (always kept)
+  allRows.forEach(row => {
+    const cats = (row[colCategory] || '').split(',').map(c => c.trim()).filter(Boolean);
+    cats.forEach(cat => {
+      if (!categoryMap.has(cat)) categoryMap.set(cat, { hasKept: false });
+    });
+  });
+
+  const uncovered = Array.from(categoryMap.entries())
+    .filter(([, v]) => !v.hasKept)
+    .map(([cat]) => cat)
+    .sort();
+
+  if (uncovered.length === 0) { section.style.display = 'none'; return; }
+
+  countEl.textContent = uncovered.length;
+  container.innerHTML = uncovered.map(cat =>
+    `<div class="warn-row">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--danger);">${cat}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#555;margin-left:8px;">— no active rows today</span>
+    </div>`
+  ).join('');
+  section.style.display = 'block';
+}
+
+function showError(msg) {
+  errorBox.textContent = '⚠ ' + msg;
+  errorBox.style.display = 'block';
+}
+</script>
+</body>
+</html>
