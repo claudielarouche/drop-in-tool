@@ -545,7 +545,7 @@
 <header>
   <h1>Period Filter</h1>
   <span>// CSV Row Cleaner</span>
-  <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#333;letter-spacing:0.1em;">v2.0</span>
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#333;letter-spacing:0.1em;">v2.1</span>
   <div class="today-badge" id="todayBadge"></div>
 </header>
 
@@ -617,6 +617,13 @@
     <!-- Download -->
     <div class="actions" style="margin-top:24px;">
       <button class="btn-download" id="downloadBtn">↓ Download Corrected CSV</button>
+    </div>
+    <div id="dedupSummary" style="display:none;margin-top:12px;background:#1a1a1a;border:1px solid #2e2e2e;border-radius:3px;padding:14px 18px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#b47fff;margin-bottom:10px;">
+        // Duplicates Removed at Download
+        <span id="dedupSummaryCount" style="background:rgba(180,127,255,0.1);border:1px solid rgba(180,127,255,0.3);color:#b47fff;padding:2px 8px;border-radius:2px;font-size:10px;margin-left:8px;"></span>
+      </div>
+      <div id="dedupSummaryList"></div>
     </div>
     <div id="nextUploadNote" style="display:none;margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);">
       The next upload should be on: <span id="nextUploadDate" style="color:var(--accent2);"></span>
@@ -914,10 +921,6 @@ function runFilter() {
   errorBox.style.display = 'none';
   if (!parsedData) return;
 
-  // Reset per-group state so stale entries from a previous upload don't persist
-  _pvEntries = new Map();
-  _actOverrides = {};
-
   const defaultYear = null; // auto-extrapolated from today
 
   let parsed;
@@ -1091,7 +1094,47 @@ downloadBtn.addEventListener('click', () => {
     keptRows.sort((a, b) => (order.get(a) || 0) - (order.get(b) || 0));
   }
 
-  const csv = toCSV(csvHeaders, keptRows, csvDelim);
+  // Deduplicate keptRows ignoring the Period column
+  const colPeriodD   = csvHeaders.find(h => h.toLowerCase() === 'period');
+  const colFacilityD = csvHeaders.find(h => h.toLowerCase() === 'facility name');
+  const dedupCols    = csvHeaders.filter(h => h !== colPeriodD);
+  const dedupSeen    = new Map(); // fingerprint → first row
+  const dedupRemoved = new Map(); // facility name → count
+  const dedupedRows  = [];
+
+  keptRows.forEach(row => {
+    const fp = dedupCols.map(h => (row[h] || '').trim()).join('|||');
+    if (dedupSeen.has(fp)) {
+      // It's a duplicate — track by facility
+      const facility = colFacilityD ? (row[colFacilityD] || '').trim() || '(no facility)' : '(no facility)';
+      dedupRemoved.set(facility, (dedupRemoved.get(facility) || 0) + 1);
+    } else {
+      dedupSeen.set(fp, row);
+      dedupedRows.push(row);
+    }
+  });
+
+  // Show dedup summary
+  const summaryEl   = document.getElementById('dedupSummary');
+  const summaryList = document.getElementById('dedupSummaryList');
+  const summaryCount = document.getElementById('dedupSummaryCount');
+  if (dedupRemoved.size > 0) {
+    const totalRemoved = Array.from(dedupRemoved.values()).reduce((a, b) => a + b, 0);
+    summaryCount.textContent = totalRemoved + ' row' + (totalRemoved !== 1 ? 's' : '');
+    summaryList.innerHTML = Array.from(dedupRemoved.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([facility, count]) =>
+        `<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#aaa;padding:2px 0;">
+          <span style="color:#b47fff;min-width:32px;display:inline-block;">×${count}</span>
+          ${facility}
+        </div>`
+      ).join('');
+    summaryEl.style.display = 'block';
+  } else {
+    summaryEl.style.display = 'none';
+  }
+
+  const csv = toCSV(csvHeaders, dedupedRows, csvDelim);
   try {
     // Try Blob URL first
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1225,17 +1268,10 @@ function renderPeriodValidation() {
           p.logEntry.label = 'KEPT';
         }
       } else {
-        // Keep empty/unknown periods if no sibling period is currently active
-        const hasActiveNonEmpty = periods.some(p => p.parsed && isActiveToday(p.parsed));
         periods.forEach(p => {
           if (p.logEntry && !p.logEntry.overridden && (p.logEntry.status === 'u' || p.logEntry.isEmpty)) {
-            if (hasActiveNonEmpty) {
-              p.logEntry.status = 'r';
-              p.logEntry.label = 'REMOVED';
-            } else {
-              p.logEntry.status = 'k';
-              p.logEntry.label = 'KEPT';
-            }
+            p.logEntry.status = 'r';
+            p.logEntry.label = 'REMOVED';
           }
         });
       }
@@ -1274,15 +1310,6 @@ function renderPeriodValidation() {
           }
         }
       }
-
-      // Correction pass: a period with a valid parsed date that is not active today
-      // must be REMOVED regardless of what earlier logic decided, unless overridden.
-      periods.forEach(p => {
-        if (p.logEntry && !p.logEntry.overridden && p.parsed && isActiveToday(p.parsed) === false) {
-          p.logEntry.status = 'r';
-          p.logEntry.label = 'REMOVED';
-        }
-      });
 
       categories.push({ category, periods });
     }
